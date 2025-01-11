@@ -18,27 +18,16 @@ logger = task.get_logger()
 device = torch.device("mps") if torch.backends.mps.is_available() else torch.device("cpu")
 print(f"Using device: {device}")
 
-# --------------------------------------------------------------------------------
-# 2. BASIC TEXT -> ID MAPPING
-# --------------------------------------------------------------------------------
-# We'll define a small set of characters. Unknown chars -> 0.
+
 ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,.!? '-\";:"
-char_to_id = {c: i+1 for i, c in enumerate(ALPHABET)}  # 1-based indexing
+char_to_id = {c: i+1 for i, c in enumerate(ALPHABET)}
 UNK_TOKEN = 0
-VOCAB_SIZE = len(char_to_id) + 1  # +1 for UNK
+VOCAB_SIZE = len(char_to_id) + 1
 
 def text_to_sequence(text):
-    """Naive character-level tokenizer."""
     return torch.tensor([char_to_id.get(ch, UNK_TOKEN) for ch in text], dtype=torch.long)
 
-# --------------------------------------------------------------------------------
-# 3. LJSPEECH DATASET - TEXT + RAW AUDIO
-# --------------------------------------------------------------------------------
 class LJSpeechWaveDataset(Dataset):
-    """
-    Loads text + raw audio from LJSpeech.
-    Crops (or zero-pads) each audio to a fixed max duration.
-    """
     def __init__(self,
                  data_dir,
                  sample_rate=22050,
@@ -67,7 +56,6 @@ class LJSpeechWaveDataset(Dataset):
             wav_path = os.path.join(data_dir, "wavs", f"{wav_id}.wav")
             self.entries.append((wav_path, text_str))
 
-        # Max number of samples for each audio
         self.max_samples = int(self.max_duration * self.sample_rate)
 
     def __len__(self):
@@ -75,21 +63,16 @@ class LJSpeechWaveDataset(Dataset):
 
     def __getitem__(self, idx):
         wav_path, text_str = self.entries[idx]
-        # Text -> IDs
         text_ids = text_to_sequence(text_str)
 
-        # Load audio
         audio, sr = librosa.load(wav_path, sr=self.sample_rate)
-        # Crop or pad to max_samples
         if len(audio) > self.max_samples:
             audio = audio[:self.max_samples]
         else:
-            # zero-pad
             pad_len = self.max_samples - len(audio)
             audio = np.pad(audio, (0, pad_len), mode="constant")
 
-        # Convert to torch
-        audio_tensor = torch.from_numpy(audio).float()  # shape: (max_samples,)
+        audio_tensor = torch.from_numpy(audio).float()
         return text_ids, audio_tensor
 
 def rawaudio_collate_fn(batch):
