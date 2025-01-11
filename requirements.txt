@@ -1,0 +1,6 @@
+librosa
+torch
+numpy
+soundfile
+clearml
+matplotlib
